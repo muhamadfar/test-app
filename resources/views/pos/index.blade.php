@@ -5,7 +5,7 @@
     <div class="container">
         <div class="menu-grid">
             @foreach ($products as $product)
-                <div class="menu-item" onclick="addToOrder('{{ $product->name }}', {{ $product->price }})">
+                <div class="menu-item" onclick="addToOrder('{{ $product->id }}', '{{ $product->name }}', {{ $product->price }})">
                     <img src="path-to-image/{{ $product->image }}" alt="{{ $product->name }}">
                     <div class="title">{{ $product->name }}<br>Rp {{ number_format($product->price, 0, ',', '.') }}</div>
                 </div>
@@ -31,76 +31,56 @@
     </div>
 </body>
 @endsection
+
 @section('js0')
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        function addToOrder(productId) {
-            $.post('/add-to-order', { product_id: productId, _token: '{{ csrf_token() }}' }, function(data) {
-                updateOrderList(data.order);
-                updateTotal(data.total);
-            });
-        }
-    
-        function saveOrder() {
-            $.post('/save-order', { _token: '{{ csrf_token() }}' }, function(data) {
-                alert(data.message);
-            });
-        }
-    
-        function chargeOrder() {
-            let payment = prompt(`Total: Rp ${total}. Enter payment amount:`);
-            $.post('/charge-order', { total: total, payment: payment, _token: '{{ csrf_token() }}' }, function(data) {
-                alert(`Payment: Rp ${data.payment}\nChange: Rp ${data.change}`);
-                if (data.change >= 0) {
-                    location.reload();
-                }
-            });
-        }
-    
-        function updateOrderList(order) {
-            let orderList = $('#order-list');
-            orderList.empty();
-            order.forEach(product => {
-                orderList.append(`<li>${product.name} x${product.quantity} - Rp ${product.total_price}</li>`);
-            });
-        }
-    
-        function updateTotal(total) {
-            $('#total-amount').text(`Total: Rp ${total}`);
-        }
-    </script>
-    @endsection
-@section('js1')
 <script>
     let order = [];
     let total = 0;
 
-    function addToOrder(name, price) {
-        let product = order.find(p => p.name === name);
+    function addToOrder(id, name, price) {
+        let product = order.find(p => p.id === id);
         if (product) {
             product.quantity += 1;
             product.total += price;
         } else {
-            order.push({ name, price, quantity: 1, total: price });
+            order.push({ id, name, price, quantity: 1, total: price });
         }
         updateOrder();
     }
 
     function updateOrder() {
-        let orderList = document.getElementById('order-list');
-        orderList.innerHTML = '';
+        let orderList = $('#order-list');
+        orderList.empty();
         total = 0;
 
         order.forEach(product => {
             total += product.total;
-            orderList.innerHTML += `<li>${product.name} x${product.quantity} - Rp ${product.total}</li>`;
+            orderList.append(`<li>${product.name} x${product.quantity} - Rp ${product.total}</li>`);
         });
 
-        document.getElementById('total-amount').innerText = `Total: Rp ${total}`;
+        $('#total-amount').text(`Total: Rp ${total}`);
     }
 
     function saveOrder() {
-        alert('Order saved!');
+        $.ajax({
+            url: '/save-order', 
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                order: order,
+                total: total
+            },
+            success: function(response) {
+                alert('Order saved!');
+                order = [];
+                total = 0;
+                updateOrder();
+            },
+            error: function() {
+                alert('Failed to save order.');
+            }
+        });
     }
 
     function printOrder() {
@@ -108,10 +88,17 @@
     }
 
     function chargeOrder() {
-        let payment = prompt(`Total: Rp ${total}. Enter payment amount:`);
-        let change = payment - total;
+        let payment = parseFloat(prompt(`Total: Rp ${total}. Enter payment amount:`));
+        if (isNaN(payment) || payment < total) {
+            alert('Insufficient payment amount.');
+            return;
+        }
 
+        let change = payment - total;
         alert(`Payment: Rp ${payment}\nChange: Rp ${change}`);
+        order = [];
+        total = 0;
+        updateOrder();
     }
 </script>
 @endsection

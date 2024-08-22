@@ -21,6 +21,7 @@ use App\Http\Controllers\POSController;
 Route::get('/pos', [POSController::class, 'index']);
 Route::post('/add-to-order', [POSController::class, 'addToOrder']);
 Route::post('/save-order', [POSController::class, 'saveOrder']);
+Route::post('/save-orderan', [OrderController::class, 'saveOrder']);
 Route::post('/print-order', [POSController::class, 'printOrder']);
 Route::post('/charge-order', [POSController::class, 'chargeOrder']);
 
